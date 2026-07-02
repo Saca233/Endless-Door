@@ -52,6 +52,8 @@ namespace OwariNakiTobira.Editor
             GameWindowCamera gameWindowCamera = CreateGameplayCamera(gameplayWorld.transform);
             CreateGameplayFloor(gameplayWorld.transform);
             CreatePlaceholderBuildings(gameplayWorld.transform);
+            WindowPuzzleTarget coverPuzzleWall = CreateCoverPuzzleWall(gameplayWorld.transform);
+            CreateDestinationPlatform(gameplayWorld.transform);
             CreatePrototypePlayer(gameplayWorld.transform, playerControlGate);
 
             GameObject ui = CreateChild(host.transform, "UI");
@@ -73,6 +75,7 @@ namespace OwariNakiTobira.Editor
 
             DesktopWindowController utilityWindow = CreateWindowInstance(desktopWindowLayer, manager, "UtilityWindow", "Utility Window", new Vector2(420f, -190f), new Vector2(320f, 220f), true);
             AddUtilityWindowContent(utilityWindow);
+            CreateCoverPuzzleRule(systems.transform, utilityWindow, gameWindowCamera, gameWindowView, coverPuzzleWall);
 
             CreateFullScreenLayer(canvas.transform, "DialogueLayer");
             RectTransform fadeLayer = CreateFullScreenLayer(canvas.transform, "FadeLayer");
@@ -290,6 +293,48 @@ namespace OwariNakiTobira.Editor
             }
         }
 
+        private static WindowPuzzleTarget CreateCoverPuzzleWall(Transform parent)
+        {
+            GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.name = "CoverPuzzleWall";
+            wall.transform.SetParent(parent, false);
+            wall.transform.position = new Vector3(-1.1f, 0.6f, 0f);
+            wall.transform.localScale = new Vector3(0.75f, 3.1f, 1.2f);
+            AssignLayerRecursively(wall, PuzzleObjectLayerName);
+
+            WindowPuzzleTarget target = wall.AddComponent<WindowPuzzleTarget>();
+            target.SetAffectedObjects(
+                new[] { wall.GetComponent<Renderer>() },
+                new[] { wall.GetComponent<Collider>() });
+            return target;
+        }
+
+        private static void CreateDestinationPlatform(Transform parent)
+        {
+            GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            platform.name = "DestinationPlatform";
+            platform.transform.SetParent(parent, false);
+            platform.transform.position = new Vector3(4.2f, 0.25f, 0f);
+            platform.transform.localScale = new Vector3(2.6f, 0.3f, 1.5f);
+            AssignLayerRecursively(platform, GameplayWorldLayerName);
+        }
+
+        private static void CreateCoverPuzzleRule(Transform parent, DesktopWindowController utilityWindow, GameWindowCamera gameWindowCamera, GameWindowView gameWindowView, WindowPuzzleTarget target)
+        {
+            GameObject ruleObject = CreateChild(parent, "CoverToEraseRule");
+            CoverToEraseRule rule = ruleObject.AddComponent<CoverToEraseRule>();
+            AssignObject(rule, "coveringWindow", utilityWindow);
+            AssignObject(rule, "gameWindowCamera", gameWindowCamera);
+            AssignObject(rule, "gameWindowView", gameWindowView);
+            AssignObjectArray(rule, "targets", target);
+
+            PuzzleRuleEnableController enableController = ruleObject.AddComponent<PuzzleRuleEnableController>();
+            AssignObjectArray(enableController, "rules", rule);
+
+            WindowPuzzleDebugOverlay overlay = ruleObject.AddComponent<WindowPuzzleDebugOverlay>();
+            AssignObject(overlay, "rule", rule);
+        }
+
         private static void CreatePrototypePlayer(Transform parent, PlayerControlGate playerControlGate)
         {
             GameObject player = new GameObject("PrototypePlayer");
@@ -494,6 +539,24 @@ namespace OwariNakiTobira.Editor
         }
 
         private static void AssignGraphicArray(UnityEngine.Object target, string propertyName, params Graphic[] values)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyName);
+            if (property == null)
+            {
+                return;
+            }
+
+            property.arraySize = values.Length;
+            for (int i = 0; i < values.Length; i++)
+            {
+                property.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+            }
+
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void AssignObjectArray(UnityEngine.Object target, string propertyName, params UnityEngine.Object[] values)
         {
             SerializedObject serializedObject = new SerializedObject(target);
             SerializedProperty property = serializedObject.FindProperty(propertyName);

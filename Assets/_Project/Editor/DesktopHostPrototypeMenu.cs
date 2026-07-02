@@ -39,7 +39,16 @@ namespace OwariNakiTobira.Editor
             GameObject systems = CreateChild(host.transform, "Systems");
             DesktopWindowManager manager = CreateChild(systems.transform, "DesktopWindowManager").AddComponent<DesktopWindowManager>();
             PlayerControlGate playerControlGate = CreateChild(systems.transform, "PlayerControlGate").AddComponent<PlayerControlGate>();
+            RuntimeResetService runtimeResetService = CreateChild(systems.transform, "RuntimeResetService").AddComponent<RuntimeResetService>();
+            GameFlowController gameFlowController = CreateChild(systems.transform, "GameFlowController").AddComponent<GameFlowController>();
+            StoryFlagService storyFlagService = CreateChild(systems.transform, "StoryFlagService").AddComponent<StoryFlagService>();
+            StorySequenceRunner storySequenceRunner = CreateChild(systems.transform, "StorySequenceRunner").AddComponent<StorySequenceRunner>();
             WindowDragPlayerLock dragPlayerLock = systems.AddComponent<WindowDragPlayerLock>();
+            AssignObject(gameFlowController, "runtimeResetService", runtimeResetService);
+            AssignObject(storyFlagService, "runtimeResetService", runtimeResetService);
+            AssignObject(storySequenceRunner, "storyFlagService", storyFlagService);
+            AssignObject(storySequenceRunner, "playerControlGate", playerControlGate);
+            AssignObject(storySequenceRunner, "runtimeResetService", runtimeResetService);
 
             GameObject desktopWorld = CreateChild(host.transform, "DesktopWorld");
             AssignLayerRecursively(desktopWorld, DesktopWorldLayerName);
@@ -75,13 +84,19 @@ namespace OwariNakiTobira.Editor
 
             DesktopWindowController utilityWindow = CreateWindowInstance(desktopWindowLayer, manager, "UtilityWindow", "Utility Window", new Vector2(420f, -190f), new Vector2(320f, 220f), true);
             AddUtilityWindowContent(utilityWindow);
-            CreateCoverPuzzleRule(systems.transform, utilityWindow, gameWindowCamera, gameWindowView, coverPuzzleWall);
+            CoverToEraseRule coverRule = CreateCoverPuzzleRule(systems.transform, utilityWindow, gameWindowCamera, gameWindowView, coverPuzzleWall);
 
             CreateFullScreenLayer(canvas.transform, "DialogueLayer");
             RectTransform fadeLayer = CreateFullScreenLayer(canvas.transform, "FadeLayer");
             Image fadeImage = fadeLayer.gameObject.AddComponent<Image>();
-            fadeImage.color = new Color(0f, 0f, 0f, 0f);
+            fadeImage.color = Color.black;
             fadeImage.raycastTarget = false;
+            CanvasGroup fadeCanvasGroup = fadeLayer.gameObject.AddComponent<CanvasGroup>();
+            ScreenFadeView screenFadeView = fadeLayer.gameObject.AddComponent<ScreenFadeView>();
+            AssignObject(screenFadeView, "canvasGroup", fadeCanvasGroup);
+            AssignObject(storySequenceRunner, "screenFadeView", screenFadeView);
+            AssignObjectArray(runtimeResetService, "initialResetTargets", playerControlGate, storyFlagService, storySequenceRunner, coverRule, coverPuzzleWall);
+            screenFadeView.SetAlpha(0f);
 
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -319,7 +334,7 @@ namespace OwariNakiTobira.Editor
             AssignLayerRecursively(platform, GameplayWorldLayerName);
         }
 
-        private static void CreateCoverPuzzleRule(Transform parent, DesktopWindowController utilityWindow, GameWindowCamera gameWindowCamera, GameWindowView gameWindowView, WindowPuzzleTarget target)
+        private static CoverToEraseRule CreateCoverPuzzleRule(Transform parent, DesktopWindowController utilityWindow, GameWindowCamera gameWindowCamera, GameWindowView gameWindowView, WindowPuzzleTarget target)
         {
             GameObject ruleObject = CreateChild(parent, "CoverToEraseRule");
             CoverToEraseRule rule = ruleObject.AddComponent<CoverToEraseRule>();
@@ -333,6 +348,7 @@ namespace OwariNakiTobira.Editor
 
             WindowPuzzleDebugOverlay overlay = ruleObject.AddComponent<WindowPuzzleDebugOverlay>();
             AssignObject(overlay, "rule", rule);
+            return rule;
         }
 
         private static void CreatePrototypePlayer(Transform parent, PlayerControlGate playerControlGate)

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace OwariNakiTobira
 {
     [DisallowMultipleComponent]
-    public sealed class CoverToEraseRule : MonoBehaviour
+    public sealed class CoverToEraseRule : MonoBehaviour, IRuntimeResettable
     {
         [SerializeField] private DesktopWindowController coveringWindow;
         [SerializeField] private GameWindowCamera gameWindowCamera;
@@ -34,6 +34,7 @@ namespace OwariNakiTobira
         public DesktopWindowController CoveringWindow => coveringWindow;
         public int TargetCount => targets == null ? 0 : targets.Length;
         public Rect LastCoveringWindowRect => lastCoveringWindowRect;
+        public int ResetOrder => 40;
 
         private void Awake()
         {
@@ -177,6 +178,11 @@ namespace OwariNakiTobira
             }
 
             return coverage >= activationThreshold;
+        }
+
+        public void RuntimeReset()
+        {
+            ReleaseAllEffects();
         }
 
         public void ReleaseAllEffects()

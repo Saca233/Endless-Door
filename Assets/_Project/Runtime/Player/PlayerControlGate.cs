@@ -4,13 +4,14 @@ using UnityEngine;
 namespace OwariNakiTobira
 {
     [DisallowMultipleComponent]
-    public sealed class PlayerControlGate : MonoBehaviour
+    public sealed class PlayerControlGate : MonoBehaviour, IRuntimeResettable
     {
         private readonly HashSet<PlayerControlLockToken> activeLocks = new HashSet<PlayerControlLockToken>();
         private int nextLockId = 1;
 
         public bool IsLocked => activeLocks.Count > 0;
         public int ActiveLockCount => activeLocks.Count;
+        public int ResetOrder => -100;
 
         public PlayerControlLockToken AcquireLock(string ownerName)
         {
@@ -28,6 +29,11 @@ namespace OwariNakiTobira
         public void ClearAllLocks()
         {
             activeLocks.Clear();
+        }
+
+        public void RuntimeReset()
+        {
+            ClearAllLocks();
         }
     }
 }

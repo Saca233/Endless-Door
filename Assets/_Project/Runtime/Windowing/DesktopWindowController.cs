@@ -8,7 +8,7 @@ namespace OwariNakiTobira
     [DisallowMultipleComponent]
     [RequireComponent(typeof(DesktopWindowModel))]
     [RequireComponent(typeof(DesktopWindowView))]
-    public sealed class DesktopWindowController : MonoBehaviour, IPointerDownHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerUpHandler
+    public sealed class DesktopWindowController : MonoBehaviour, IRuntimeResettable, IPointerDownHandler, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerUpHandler
     {
         [SerializeField] private DesktopWindowManager manager;
         [SerializeField] private DesktopWindowModel model;
@@ -29,6 +29,7 @@ namespace OwariNakiTobira
         public DesktopWindowManager Manager => manager;
         public bool IsDragging => dragging;
         public bool MovementLocked => movementLocks.Count > 0;
+        public int ResetOrder => 20;
 
         private void Awake()
         {
@@ -85,6 +86,13 @@ namespace OwariNakiTobira
         public void ClearMovementLocks()
         {
             movementLocks.Clear();
+        }
+
+        public void RuntimeReset()
+        {
+            CancelDragIfNeeded();
+            ClearMovementLocks();
+            ApplyModelToView();
         }
 
         public void OnPointerDown(PointerEventData eventData)

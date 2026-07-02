@@ -4,7 +4,7 @@ using UnityEngine;
 namespace OwariNakiTobira
 {
     [DisallowMultipleComponent]
-    public sealed class WindowPuzzleTarget : MonoBehaviour
+    public sealed class WindowPuzzleTarget : MonoBehaviour, IRuntimeResettable
     {
         [SerializeField] private PuzzleTargetId targetId = PuzzleTargetId.NewId();
         [SerializeField] private Renderer[] affectedRenderers = System.Array.Empty<Renderer>();
@@ -20,6 +20,7 @@ namespace OwariNakiTobira
         public PuzzleTargetId TargetId => targetId;
         public bool IsErased => activeEffectSources.Count > 0;
         public int ActiveSourceCount => activeEffectSources.Count;
+        public int ResetOrder => 50;
 
         private void Reset()
         {

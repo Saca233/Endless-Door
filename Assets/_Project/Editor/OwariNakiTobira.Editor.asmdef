@@ -2,7 +2,10 @@
     "name": "OwariNakiTobira.Editor",
     "rootNamespace": "OwariNakiTobira.Editor",
     "references": [
-        "OwariNakiTobira.Runtime"
+        "OwariNakiTobira.Runtime",
+        "Unity.InputSystem",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

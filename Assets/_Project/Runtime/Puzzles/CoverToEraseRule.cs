@@ -180,6 +180,19 @@ namespace OwariNakiTobira
             return coverage >= activationThreshold;
         }
 
+        public void SetTargets(WindowPuzzleTarget[] value)
+        {
+            ReleaseAllEffects();
+            targets = value ?? System.Array.Empty<WindowPuzzleTarget>();
+            targetActive = System.Array.Empty<bool>();
+            targetRects = System.Array.Empty<Rect>();
+            intersectionRects = System.Array.Empty<Rect>();
+            targetCoverages = System.Array.Empty<float>();
+            hasSnapshot = false;
+            EnsureStateArrays();
+            EvaluateNow(true);
+        }
+
         public void RuntimeReset()
         {
             ReleaseAllEffects();

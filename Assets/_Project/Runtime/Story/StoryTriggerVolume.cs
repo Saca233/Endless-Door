@@ -93,6 +93,18 @@ namespace OwariNakiTobira
             }
         }
 
+        public void SetRuntimeServices(StorySequenceRunner runner, StoryFlagService flagService, RuntimeResetService resetService)
+        {
+            runtimeResetService?.Unregister(this);
+            sequenceRunner = runner;
+            storyFlagService = flagService;
+            runtimeResetService = resetService;
+            if (isActiveAndEnabled)
+            {
+                runtimeResetService?.Register(this);
+            }
+        }
+
         public void SetSequence(StorySequenceRunner runner, StorySequence storySequence)
         {
             sequenceRunner = runner;

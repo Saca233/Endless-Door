@@ -25,17 +25,22 @@ namespace OwariNakiTobira.Tests
         public void StateMachineRejectsInvalidExplicitTransition()
         {
             GameObject player = new GameObject("StateMachineTestPlayer");
-            player.AddComponent<Rigidbody>();
-            player.AddComponent<CapsuleCollider>();
-            player.AddComponent<SideScrollerMotor>();
-            PlayerStateMachine stateMachine = player.AddComponent<PlayerStateMachine>();
+            try
+            {
+                player.AddComponent<Rigidbody>();
+                player.AddComponent<CapsuleCollider>();
+                player.AddComponent<SideScrollerMotor>();
+                PlayerStateMachine stateMachine = player.AddComponent<PlayerStateMachine>();
 
-            Assert.IsTrue(stateMachine.TransitionTo(PlayerStateId.Run));
-            Assert.IsTrue(stateMachine.TransitionTo(PlayerStateId.Jump));
-            Assert.IsFalse(stateMachine.TransitionTo(PlayerStateId.Run));
-            Assert.AreEqual(PlayerStateId.Jump, stateMachine.CurrentStateId);
-
-            Object.DestroyImmediate(player);
+                Assert.IsTrue(stateMachine.TransitionTo(PlayerStateId.Run));
+                Assert.IsTrue(stateMachine.TransitionTo(PlayerStateId.Jump));
+                Assert.IsFalse(stateMachine.TransitionTo(PlayerStateId.Run));
+                Assert.AreEqual(PlayerStateId.Jump, stateMachine.CurrentStateId);
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
         }
     }
 }

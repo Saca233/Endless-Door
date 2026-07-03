@@ -14,6 +14,8 @@ namespace OwariNakiTobira.Tests
             try
             {
                 LevelEntryPoint entryPoint = levelObject.AddComponent<LevelEntryPoint>();
+                BoxCollider completionCollider = triggerObject.AddComponent<BoxCollider>();
+                completionCollider.isTrigger = true;
                 LevelCompletionTrigger completionTrigger = triggerObject.AddComponent<LevelCompletionTrigger>();
                 AssignObjectArray(entryPoint, "completionTriggers", completionTrigger);
 

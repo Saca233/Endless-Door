@@ -40,9 +40,7 @@ namespace OwariNakiTobira
 
         private void Awake()
         {
-            ResolveReferences();
-            CreateStates();
-            SetState(initialState, true);
+            InitializeStateMachine();
         }
 
         private void Update()
@@ -73,11 +71,7 @@ namespace OwariNakiTobira
 
         public bool TransitionTo(PlayerStateId targetState)
         {
-            if (!initialized)
-            {
-                SetState(targetState, true);
-                return true;
-            }
+            InitializeStateMachine();
 
             if (!PlayerStateTransitionRules.IsValid(CurrentStateId, targetState))
             {
@@ -139,6 +133,18 @@ namespace OwariNakiTobira
             {
                 animatorBridge = GetComponent<PlayerAnimatorBridge>();
             }
+        }
+
+        private void InitializeStateMachine()
+        {
+            if (initialized)
+            {
+                return;
+            }
+
+            ResolveReferences();
+            CreateStates();
+            SetState(initialState, true);
         }
 
         private void CreateStates()

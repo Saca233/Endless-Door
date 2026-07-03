@@ -34,7 +34,7 @@ namespace OwariNakiTobira.Editor
             AssetDatabase.ImportAsset(GameplayInputPath, ImportAssetOptions.ForceSynchronousImport);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            GameObject host = new GameObject("DesktopHost");
+            GameObject host = new GameObject("DesktopHostPrototype");
 
             GameObject systems = CreateChild(host.transform, "Systems");
             DesktopWindowManager manager = CreateChild(systems.transform, "DesktopWindowManager").AddComponent<DesktopWindowManager>();
@@ -58,12 +58,20 @@ namespace OwariNakiTobira.Editor
 
             GameObject gameplayWorld = CreateChild(host.transform, "GameplayWorld");
             AssignLayerRecursively(gameplayWorld, GameplayWorldLayerName);
-            GameWindowCamera gameWindowCamera = CreateGameplayCamera(gameplayWorld.transform);
-            CreateGameplayFloor(gameplayWorld.transform);
-            CreatePlaceholderBuildings(gameplayWorld.transform);
-            WindowPuzzleTarget coverPuzzleWall = CreateCoverPuzzleWall(gameplayWorld.transform);
-            CreateDestinationPlatform(gameplayWorld.transform);
-            CreatePrototypePlayer(gameplayWorld.transform, playerControlGate);
+            GameObject environment = CreateChild(gameplayWorld.transform, "Environment");
+            GameObject platforms = CreateChild(gameplayWorld.transform, "Platforms");
+            GameObject obstacles = CreateChild(gameplayWorld.transform, "Obstacles");
+            GameObject playerGroup = CreateChild(gameplayWorld.transform, "Player");
+            CreateGameplayFloor(environment.transform);
+            CreatePlaceholderBuildings(environment.transform);
+            WindowPuzzleTarget coverPuzzleWall = CreateCoverPuzzleWall(obstacles.transform);
+            CreateDestinationPlatform(platforms.transform);
+            Transform prototypePlayer = CreatePrototypePlayer(playerGroup.transform, playerControlGate);
+
+            GameObject gameplayCameraRig = CreateChild(host.transform, "GameplayCameraRig");
+            gameplayCameraRig.transform.position = new Vector3(0f, 3f, -10f);
+            GameWindowCamera gameWindowCamera = CreateGameplayCamera(gameplayCameraRig.transform);
+            ConfigureSideScrollerCamera(gameplayCameraRig, gameWindowCamera, prototypePlayer);
 
             GameObject ui = CreateChild(host.transform, "UI");
             Canvas canvas = CreateCanvas(ui.transform, desktopCamera);
@@ -244,7 +252,8 @@ namespace OwariNakiTobira.Editor
         private static GameWindowCamera CreateGameplayCamera(Transform parent)
         {
             GameObject cameraObject = CreateChild(parent, "GameplayCamera");
-            cameraObject.transform.position = new Vector3(0f, 3f, -10f);
+            cameraObject.transform.localPosition = Vector3.zero;
+            cameraObject.transform.localRotation = Quaternion.identity;
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
             camera.orthographicSize = 4.5f;
@@ -256,6 +265,25 @@ namespace OwariNakiTobira.Editor
             AssignLayerMask(gameWindowCamera, "gameplayLayers", LayerMask.GetMask(GameplayWorldLayerName, GameplayPlayerLayerName, PuzzleObjectLayerName));
             AssignVector2Int(gameWindowCamera, "renderResolution", new Vector2Int(1280, 720));
             return gameWindowCamera;
+        }
+
+        private static void ConfigureSideScrollerCamera(GameObject gameplayCameraRig, GameWindowCamera gameWindowCamera, Transform followTarget)
+        {
+            SideScrollerCameraBounds bounds = gameplayCameraRig.AddComponent<SideScrollerCameraBounds>();
+            bounds.Configure(new Vector2(-16f, -2f), new Vector2(22f, 8f), true);
+
+            SideScrollerCameraController controller = gameplayCameraRig.AddComponent<SideScrollerCameraController>();
+            AssignObject(controller, "cameraRig", gameplayCameraRig.transform);
+            AssignObject(controller, "gameplayCamera", gameWindowCamera.GameplayCamera);
+            AssignObject(controller, "followTarget", followTarget);
+            AssignObject(controller, "bounds", bounds);
+            AssignBool(controller, "followY", false);
+            AssignFloat(controller, "fixedZPosition", gameplayCameraRig.transform.position.z);
+            AssignFloat(controller, "smoothTime", 0.15f);
+            AssignFloat(controller, "lookAheadDistance", 1.1f);
+            AssignFloat(controller, "deadZoneWidth", 0.75f);
+            AssignFloat(controller, "deadZoneHeight", 0.6f);
+            controller.SnapToTarget();
         }
 
         private static void CreateDesktopFloor(Transform parent)
@@ -288,8 +316,8 @@ namespace OwariNakiTobira.Editor
             GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
             floor.name = "GameplayFloor";
             floor.transform.SetParent(parent, false);
-            floor.transform.position = new Vector3(0f, -1.25f, 0f);
-            floor.transform.localScale = new Vector3(15f, 0.4f, 2f);
+            floor.transform.position = new Vector3(3f, -1.25f, 0f);
+            floor.transform.localScale = new Vector3(38f, 0.4f, 2f);
             AssignLayerRecursively(floor, GameplayWorldLayerName);
         }
 
@@ -297,12 +325,12 @@ namespace OwariNakiTobira.Editor
         {
             GameObject buildingsRoot = CreateChild(parent, "PlaceholderBuildings");
             AssignLayerRecursively(buildingsRoot, GameplayWorldLayerName);
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 9; i++)
             {
                 GameObject building = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 building.name = "PlaceholderBuilding_" + (i + 1);
                 building.transform.SetParent(buildingsRoot.transform, false);
-                building.transform.position = new Vector3(-5f + i * 2f, 0.6f + i % 3 * 0.25f, 0.8f);
+                building.transform.position = new Vector3(-11f + i * 3f, 0.6f + i % 3 * 0.25f, 0.8f);
                 building.transform.localScale = new Vector3(0.8f, 2.4f + i % 3, 0.6f);
                 AssignLayerRecursively(building, GameplayWorldLayerName);
             }
@@ -332,6 +360,13 @@ namespace OwariNakiTobira.Editor
             platform.transform.position = new Vector3(4.2f, 0.25f, 0f);
             platform.transform.localScale = new Vector3(2.6f, 0.3f, 1.5f);
             AssignLayerRecursively(platform, GameplayWorldLayerName);
+
+            GameObject cameraTestPlatform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cameraTestPlatform.name = "CameraTestPlatform_Right";
+            cameraTestPlatform.transform.SetParent(parent, false);
+            cameraTestPlatform.transform.position = new Vector3(12f, 0.2f, 0f);
+            cameraTestPlatform.transform.localScale = new Vector3(3.2f, 0.28f, 1.5f);
+            AssignLayerRecursively(cameraTestPlatform, GameplayWorldLayerName);
         }
 
         private static CoverToEraseRule CreateCoverPuzzleRule(Transform parent, DesktopWindowController utilityWindow, GameWindowCamera gameWindowCamera, GameWindowView gameWindowView, WindowPuzzleTarget target)
@@ -351,7 +386,7 @@ namespace OwariNakiTobira.Editor
             return rule;
         }
 
-        private static void CreatePrototypePlayer(Transform parent, PlayerControlGate playerControlGate)
+        private static Transform CreatePrototypePlayer(Transform parent, PlayerControlGate playerControlGate)
         {
             GameObject player = new GameObject("PrototypePlayer");
             player.transform.SetParent(parent, false);
@@ -395,6 +430,7 @@ namespace OwariNakiTobira.Editor
             AssignObject(stateMachine, "controlGate", playerControlGate);
             AssignObject(stateMachine, "facingController", facing);
             AssignObject(stateMachine, "animatorBridge", animatorBridge);
+            return player.transform;
         }
 
         private static Canvas CreateCanvas(Transform parent, Camera desktopCamera)
@@ -550,6 +586,28 @@ namespace OwariNakiTobira.Editor
             if (property != null)
             {
                 property.vector2IntValue = value;
+                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        private static void AssignBool(UnityEngine.Object target, string propertyName, bool value)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.boolValue = value;
+                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        private static void AssignFloat(UnityEngine.Object target, string propertyName, float value)
+        {
+            SerializedObject serializedObject = new SerializedObject(target);
+            SerializedProperty property = serializedObject.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.floatValue = value;
                 serializedObject.ApplyModifiedPropertiesWithoutUndo();
             }
         }

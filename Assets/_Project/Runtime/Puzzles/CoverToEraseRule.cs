@@ -7,6 +7,7 @@ namespace OwariNakiTobira
     public sealed class CoverToEraseRule : MonoBehaviour, IRuntimeResettable
     {
         [SerializeField] private DesktopWindowController coveringWindow;
+        [SerializeField] private RectTransform coveringRectOverride;
         [SerializeField] private GameWindowCamera gameWindowCamera;
         [SerializeField] private GameWindowView gameWindowView;
         [SerializeField] private WindowPuzzleTarget[] targets = System.Array.Empty<WindowPuzzleTarget>();
@@ -20,6 +21,7 @@ namespace OwariNakiTobira
         private Rect[] targetRects = System.Array.Empty<Rect>();
         private Rect[] intersectionRects = System.Array.Empty<Rect>();
         private float[] targetCoverages = System.Array.Empty<float>();
+        private Bounds[] lastTargetBounds = System.Array.Empty<Bounds>();
         private string effectSourceId;
         private bool hasSnapshot;
         private Rect lastCoveringWindowRect;
@@ -32,6 +34,7 @@ namespace OwariNakiTobira
 
         public bool RuleEnabled => ruleEnabled;
         public DesktopWindowController CoveringWindow => coveringWindow;
+        public RectTransform CoveringRectOverride => coveringRectOverride;
         public int TargetCount => targets == null ? 0 : targets.Length;
         public Rect LastCoveringWindowRect => lastCoveringWindowRect;
         public int ResetOrder => 40;
@@ -188,8 +191,17 @@ namespace OwariNakiTobira
             targetRects = System.Array.Empty<Rect>();
             intersectionRects = System.Array.Empty<Rect>();
             targetCoverages = System.Array.Empty<float>();
+            lastTargetBounds = System.Array.Empty<Bounds>();
             hasSnapshot = false;
             EnsureStateArrays();
+            EvaluateNow(true);
+        }
+
+        public void SetCoveringRectOverride(RectTransform value)
+        {
+            coveringRectOverride = value;
+            coveringWindowCanvas = null;
+            hasSnapshot = false;
             EvaluateNow(true);
         }
 
@@ -219,18 +231,21 @@ namespace OwariNakiTobira
         private bool TryGetCoveringWindowRect(out Rect rect)
         {
             rect = Rect.zero;
-            if (coveringWindow.View == null || coveringWindow.View.WindowRoot == null)
+            RectTransform coveringRectTransform = coveringRectOverride != null
+                ? coveringRectOverride
+                : coveringWindow.View != null ? coveringWindow.View.WindowRoot : null;
+            if (coveringRectTransform == null)
             {
                 return false;
             }
 
             if (coveringWindowCanvas == null)
             {
-                coveringWindowCanvas = coveringWindow.View.WindowRoot.GetComponentInParent<Canvas>();
+                coveringWindowCanvas = coveringRectTransform.GetComponentInParent<Canvas>();
             }
 
             Camera eventCamera = coveringWindowCanvas == null || coveringWindowCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : coveringWindowCanvas.worldCamera;
-            return ScreenRectUtility.TryGetRectTransformScreenRect(coveringWindow.View.WindowRoot, eventCamera, windowCorners, out rect);
+            return ScreenRectUtility.TryGetRectTransformScreenRect(coveringRectTransform, eventCamera, windowCorners, out rect);
         }
 
         private void SubscribeToWindow()
@@ -278,7 +293,8 @@ namespace OwariNakiTobira
             Rect gameWindowRect = gameWindowView != null ? gameWindowView.GetVisibleScreenRect() : Rect.zero;
             return !Approximately(coveringRect, lastCoveringWindowRect)
                 || !Approximately(gameWindowRect, lastGameWindowRect)
-                || viewProjection != lastCameraViewProjection;
+                || viewProjection != lastCameraViewProjection
+                || HaveTargetBoundsChanged();
         }
 
         private void CaptureProjectionSnapshot(Rect coveringRect)
@@ -287,6 +303,7 @@ namespace OwariNakiTobira
             lastCoveringWindowRect = coveringRect;
             lastGameWindowRect = gameWindowView != null ? gameWindowView.GetVisibleScreenRect() : Rect.zero;
             lastCameraViewProjection = GetCameraViewProjectionMatrix();
+            CaptureTargetBoundsSnapshot();
         }
 
         private Matrix4x4 GetCameraViewProjectionMatrix()
@@ -316,6 +333,7 @@ namespace OwariNakiTobira
             targetRects = new Rect[targets.Length];
             intersectionRects = new Rect[targets.Length];
             targetCoverages = new float[targets.Length];
+            lastTargetBounds = new Bounds[targets.Length];
         }
 
         private void EnsureEffectSourceId()
@@ -332,6 +350,54 @@ namespace OwariNakiTobira
                 && Mathf.Approximately(a.y, b.y)
                 && Mathf.Approximately(a.width, b.width)
                 && Mathf.Approximately(a.height, b.height);
+        }
+
+        private bool HaveTargetBoundsChanged()
+        {
+            EnsureStateArrays();
+            for (int i = 0; i < targets.Length; i++)
+            {
+                if (targets[i] == null)
+                {
+                    continue;
+                }
+
+                if (!targets[i].TryGetWorldBounds(out Bounds currentBounds))
+                {
+                    continue;
+                }
+
+                if (!Approximately(currentBounds, lastTargetBounds[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void CaptureTargetBoundsSnapshot()
+        {
+            EnsureStateArrays();
+            for (int i = 0; i < targets.Length; i++)
+            {
+                if (targets[i] != null && targets[i].TryGetWorldBounds(out Bounds currentBounds))
+                {
+                    lastTargetBounds[i] = currentBounds;
+                }
+            }
+        }
+
+        private static bool Approximately(Bounds a, Bounds b)
+        {
+            return Approximately(a.center, b.center) && Approximately(a.size, b.size);
+        }
+
+        private static bool Approximately(Vector3 a, Vector3 b)
+        {
+            return Mathf.Approximately(a.x, b.x)
+                && Mathf.Approximately(a.y, b.y)
+                && Mathf.Approximately(a.z, b.z);
         }
     }
 }

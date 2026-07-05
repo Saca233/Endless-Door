@@ -20,6 +20,7 @@ namespace OwariNakiTobira.Editor
         private const string GameplayWorldLayerName = "GameplayWorld";
         private const string GameplayPlayerLayerName = "GameplayPlayer";
         private const string PuzzleObjectLayerName = "PuzzleObject";
+        private const string ErasablePuzzleLayerName = "ErasablePuzzle";
 
         [MenuItem("Tools/OwariNakiTobira/Create Desktop Host Prototype")]
         public static void CreateDesktopHostPrototype()
@@ -71,6 +72,7 @@ namespace OwariNakiTobira.Editor
             GameObject gameplayCameraRig = CreateChild(host.transform, "GameplayCameraRig");
             gameplayCameraRig.transform.position = new Vector3(0f, 3f, -10f);
             GameWindowCamera gameWindowCamera = CreateGameplayCamera(gameplayCameraRig.transform);
+            Camera utilityViewCamera = CreateUtilityViewCamera(gameplayCameraRig.transform, gameWindowCamera.GameplayCamera);
             ConfigureSideScrollerCamera(gameplayCameraRig, gameWindowCamera, prototypePlayer);
 
             GameObject ui = CreateChild(host.transform, "UI");
@@ -91,8 +93,19 @@ namespace OwariNakiTobira.Editor
             AssignObject(runtimeRenderTexture, "gameWindowView", gameWindowView);
 
             DesktopWindowController utilityWindow = CreateWindowInstance(desktopWindowLayer, manager, "UtilityWindow", "Utility Window", new Vector2(420f, -190f), new Vector2(320f, 220f), true);
-            AddUtilityWindowContent(utilityWindow);
-            CoverToEraseRule coverRule = CreateCoverPuzzleRule(systems.transform, utilityWindow, gameWindowCamera, gameWindowView, coverPuzzleWall);
+            RawImage utilityRawImage = AddUtilityWindowContent(utilityWindow);
+            UtilityWindowRenderController utilityRenderController = utilityWindow.gameObject.AddComponent<UtilityWindowRenderController>();
+            AssignObject(utilityRenderController, "sourceGameplayCamera", gameWindowCamera.GameplayCamera);
+            AssignObject(utilityRenderController, "utilityViewCamera", utilityViewCamera);
+            AssignObject(utilityRenderController, "targetRawImage", utilityRawImage);
+            AssignVector2Int(utilityRenderController, "renderResolution", new Vector2Int(512, 288));
+            AssignLayerMask(utilityRenderController, "utilityCullingMask", GetUtilityCameraMask());
+            UtilityWindowViewportMapper utilityViewportMapper = utilityWindow.gameObject.AddComponent<UtilityWindowViewportMapper>();
+            AssignObject(utilityViewportMapper, "mainGameWindowView", gameWindowView);
+            AssignObject(utilityViewportMapper, "utilityRawImage", utilityRawImage);
+            AssignObject(utilityViewportMapper, "canvas", canvas);
+            CoverToEraseRule coverRule = CreateCoverPuzzleRule(systems.transform, utilityWindow, utilityRawImage.rectTransform, gameWindowCamera, gameWindowView, coverPuzzleWall);
+            AssignObject(utilityViewportMapper, "debugCoverRule", coverRule);
 
             CreateFullScreenLayer(canvas.transform, "DialogueLayer");
             RectTransform fadeLayer = CreateFullScreenLayer(canvas.transform, "FadeLayer");
@@ -225,14 +238,21 @@ namespace OwariNakiTobira.Editor
             return rawImage;
         }
 
-        private static void AddUtilityWindowContent(DesktopWindowController window)
+        private static RawImage AddUtilityWindowContent(DesktopWindowController window)
         {
-            TextMeshProUGUI text = CreateText(window.View.ContentRoot, "PlaceholderContent", "Utility window\nDrag this by its title bar.", 16f, TextAlignmentOptions.Center);
-            RectTransform rect = text.rectTransform;
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
+            RectTransform contentRoot = window.View.ContentRoot;
+            GameObject rawObject = new GameObject("UtilityGameRawImage", typeof(RectTransform), typeof(RawImage));
+            RectTransform rawRect = rawObject.GetComponent<RectTransform>();
+            rawRect.SetParent(contentRoot, false);
+            rawRect.anchorMin = Vector2.zero;
+            rawRect.anchorMax = Vector2.one;
+            rawRect.offsetMin = Vector2.zero;
+            rawRect.offsetMax = Vector2.zero;
+            RawImage rawImage = rawObject.GetComponent<RawImage>();
+            rawImage.color = Color.white;
+            rawImage.raycastTarget = false;
+            contentRoot.gameObject.AddComponent<RectMask2D>();
+            return rawImage;
         }
 
         private static Camera CreateDesktopCamera(Transform parent)
@@ -262,9 +282,23 @@ namespace OwariNakiTobira.Editor
             camera.backgroundColor = new Color(0.015f, 0.02f, 0.03f, 1f);
             GameWindowCamera gameWindowCamera = cameraObject.AddComponent<GameWindowCamera>();
             AssignObject(gameWindowCamera, "gameplayCamera", camera);
-            AssignLayerMask(gameWindowCamera, "gameplayLayers", LayerMask.GetMask(GameplayWorldLayerName, GameplayPlayerLayerName, PuzzleObjectLayerName));
+            AssignLayerMask(gameWindowCamera, "gameplayLayers", LayerMask.GetMask(GameplayWorldLayerName, GameplayPlayerLayerName, PuzzleObjectLayerName, ErasablePuzzleLayerName));
             AssignVector2Int(gameWindowCamera, "renderResolution", new Vector2Int(1280, 720));
             return gameWindowCamera;
+        }
+
+        private static Camera CreateUtilityViewCamera(Transform parent, Camera gameplayCamera)
+        {
+            GameObject cameraObject = CreateChild(parent, "UtilityViewCamera");
+            cameraObject.transform.localPosition = Vector3.zero;
+            cameraObject.transform.localRotation = Quaternion.identity;
+            Camera camera = cameraObject.AddComponent<Camera>();
+            UtilityWindowRenderController.ApplySynchronizationSnapshot(
+                camera,
+                UtilityWindowRenderController.CreateSynchronizationSnapshot(gameplayCamera),
+                GetUtilityCameraMask());
+            camera.depth = -11f;
+            return camera;
         }
 
         private static void ConfigureSideScrollerCamera(GameObject gameplayCameraRig, GameWindowCamera gameWindowCamera, Transform followTarget)
@@ -343,7 +377,7 @@ namespace OwariNakiTobira.Editor
             wall.transform.SetParent(parent, false);
             wall.transform.position = new Vector3(-1.1f, 0.6f, 0f);
             wall.transform.localScale = new Vector3(0.75f, 3.1f, 1.2f);
-            AssignLayerRecursively(wall, PuzzleObjectLayerName);
+            AssignLayerRecursively(wall, ErasablePuzzleLayerName);
 
             WindowPuzzleTarget target = wall.AddComponent<WindowPuzzleTarget>();
             target.SetAffectedObjects(
@@ -369,11 +403,12 @@ namespace OwariNakiTobira.Editor
             AssignLayerRecursively(cameraTestPlatform, GameplayWorldLayerName);
         }
 
-        private static CoverToEraseRule CreateCoverPuzzleRule(Transform parent, DesktopWindowController utilityWindow, GameWindowCamera gameWindowCamera, GameWindowView gameWindowView, WindowPuzzleTarget target)
+        private static CoverToEraseRule CreateCoverPuzzleRule(Transform parent, DesktopWindowController utilityWindow, RectTransform utilityContentRect, GameWindowCamera gameWindowCamera, GameWindowView gameWindowView, WindowPuzzleTarget target)
         {
             GameObject ruleObject = CreateChild(parent, "CoverToEraseRule");
             CoverToEraseRule rule = ruleObject.AddComponent<CoverToEraseRule>();
             AssignObject(rule, "coveringWindow", utilityWindow);
+            AssignObject(rule, "coveringRectOverride", utilityContentRect);
             AssignObject(rule, "gameWindowCamera", gameWindowCamera);
             AssignObject(rule, "gameWindowView", gameWindowView);
             AssignObjectArray(rule, "targets", target);
@@ -515,6 +550,19 @@ namespace OwariNakiTobira.Editor
             EnsureLayer(GameplayWorldLayerName);
             EnsureLayer(GameplayPlayerLayerName);
             EnsureLayer(PuzzleObjectLayerName);
+            EnsureLayer(ErasablePuzzleLayerName);
+        }
+
+        private static int GetUtilityCameraMask()
+        {
+            int mask = LayerMask.GetMask(GameplayWorldLayerName, GameplayPlayerLayerName, PuzzleObjectLayerName);
+            int erasableLayer = LayerMask.NameToLayer(ErasablePuzzleLayerName);
+            if (mask == 0)
+            {
+                mask = ~0;
+            }
+
+            return erasableLayer >= 0 ? mask & ~(1 << erasableLayer) : mask;
         }
 
         private static void EnsureLayer(string layerName)

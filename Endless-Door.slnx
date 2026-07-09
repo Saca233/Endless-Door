@@ -2,6 +2,6 @@
   <Project Path="OwariNakiTobira.Runtime.csproj" />
   <Project Path="OwariNakiTobira.Tests.EditMode.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
-  <Project Path="OwariNakiTobira.Editor.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="OwariNakiTobira.Editor.csproj" />
 </Solution>

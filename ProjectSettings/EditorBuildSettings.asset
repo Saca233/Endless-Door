@@ -8,6 +8,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/DesktopHostPrototype.unity
     guid: e77ba7e9a44fa5648adaed1bbae31d35
+  - enabled: 1
+    path: Assets/_Project/Scenes/stage2.unity
+    guid: ce50b3cc8c8c849458d47ca91121ba2f
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

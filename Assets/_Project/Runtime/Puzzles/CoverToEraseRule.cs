@@ -197,6 +197,30 @@ namespace OwariNakiTobira
             EvaluateNow(true);
         }
 
+        public void ConfigureReferences(DesktopWindowController window, RectTransform coveringRect, GameWindowCamera camera, GameWindowView view)
+        {
+            if (coveringWindow != window)
+            {
+                if (isActiveAndEnabled)
+                {
+                    UnsubscribeFromWindow();
+                }
+
+                coveringWindow = window;
+                if (isActiveAndEnabled)
+                {
+                    SubscribeToWindow();
+                }
+            }
+
+            coveringRectOverride = coveringRect;
+            gameWindowCamera = camera;
+            gameWindowView = view;
+            coveringWindowCanvas = null;
+            hasSnapshot = false;
+            EvaluateNow(true);
+        }
+
         public void SetCoveringRectOverride(RectTransform value)
         {
             coveringRectOverride = value;
